@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yakıtmatik PRO</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6; /* Mavi */
+            --success: #10b981; /* Yeşil */
+            --warning: #f59e0b; /* Turuncu */
+            --danger: #ef4444; /* Kırmızı */
+            --border: #334155;
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); padding-bottom: 100px; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        h1 { font-size: 1.5rem; margin: 0; background: linear-gradient(90deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        /* Dashboard Kartları */
+        .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+        .full-width { grid-column: span 2; }
+        
+        .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-val { font-size: 1.6rem; font-weight: 700; margin-top: 5px; }
+        .stat-sub { font-size: 0.8rem; margin-top: 5px; opacity: 0.8; }
+        
+        .text-green { color: var(--success); }
+        .text-red { color: var(--danger); }
+
+        /* Grafik Alanı */
+        .chart-container { position: relative; height: 250px; width: 100%; margin-top: 10px; }
+
+        /* Form / Modal Yapısı (Basitçe aşağıda gösterelim şimdilik) */
+        .form-section { background: var(--card-bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 30px; }
+        .form-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px; }
+        input, select, textarea { width: 100%; background: #0f172a; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 8px; font-size: 0.95rem; box-sizing: border-box; font-family: inherit; }
+        input:focus { border-color: var(--accent); outline: none; }
+        
+        .radio-group { display: flex; gap: 10px; background: #0f172a; padding: 5px; border-radius: 8px; border: 1px solid var(--border); }
+        .radio-group label { margin: 0; flex: 1; text-align: center; padding: 8px; cursor: pointer; border-radius: 6px; font-size: 0.8rem; transition: 0.2s; }
+        .radio-group input[type="radio"] { display: none; }
+        .radio-group input:checked + label { background: var(--accent); color: white; font-weight: 600; }
+
+        button.btn-save { width: 100%; background: linear-gradient(135deg, var(--accent), #2563eb); color: white; border: none; padding: 15px; font-size: 1rem; font-weight: 600; border-radius: 10px; cursor: pointer; transition: transform 0.1s; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        button.btn-save:active { transform: scale(0.98); }
+
+        /* Liste Tasarımı */
+        .log-list { list-style: none; padding: 0; margin: 0; }
+        .log-item { background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 12px; border-left: 4px solid var(--accent); display: flex; flex-direction: column; gap: 8px; position: relative; }
+        .log-header { display: flex; justify-content: space-between; font-weight: 600; font-size: 1rem; }
+        .log-details { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted); }
+        .log-badges { display: flex; gap: 5px; margin-top: 5px; }
+        .badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 4px; background: #334155; color: #cbd5e1; }
+        .badge.warning { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+        
+        .station-link { color: var(--accent); text-decoration: none; font-size: 0.8rem; display: flex; align-items: center; gap: 4px; }
+
+        /* Silme butonu */
+        .btn-del { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #475569; cursor: pointer; font-size: 1.2rem; }
+        .btn-del:hover { color: var(--danger); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Yakıtmatik PRO</h1>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">v3.0</div>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <div class="stat-label">ORT. TÜKETİM</div>
+            <div class="stat-val" id="avgCons">--</div>
+            <div class="stat-sub">Lt / 100km</div>
+        </div>
+        <div class="card">
+            <div class="stat-label">KM MALİYETİ</div>
+            <div class="stat-val" id="costPerKm">--</div>
+            <div class="stat-sub">TL / km</div>
+        </div>
+        <div class="card full-width">
+            <div class="stat-label">AYLIK HARCAMA & TREND</div>
+            <div class="chart-container">
+                <canvas id="expenseChart"></canvas>
+            </div>
+            <div style="margin-top:10px; font-size:0.8rem; text-align:center; color: var(--warning);" id="cheapestStationMsg">
+                🏷️ En uygun yakıt: Veri yok
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <div class="form-title">⛽ Yeni Yakıt Kaydı</div>
+        
+        <div class="grid-2">
+            <div class="input-group">
+                <label>Tarih & Saat</label>
+                <input type="datetime-local" id="entryDate">
+            </div>
+            <div class="input-group">
+                <label>İstasyon Adı</label>
+                <input type="text" id="station" placeholder="Örn: Shell Kocasinan">
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="input-group">
+                <label>Şu Anki KM (Odometre)</label>
+                <input type="number" id="currentKm" placeholder="Örn: 125400" onchange="kmHesapla()">
+            </div>
+            <div class="input-group">
+                <label>Yakıt Türü</label>
+                <select id="fuelType">
+                    <option value="Benzin">Benzin</option>
+                    <option value="Dizel">Dizel</option>
+                    <option value="LPG">LPG</option>
+                    <option value="Elektrik">Elektrik</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="input-group">
+                <label>Alınan Litre</label>
+                <input type="number" id="liters" placeholder="0.00" step="0.01">
+            </div>
+            <div class="input-group">
+                <label>Toplam Tutar (TL)</label>
+                <input type="number" id="totalPrice" placeholder="0.00">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Depo Durumu</label>
+            <div class="radio-group">
+                <input type="radio" id="tankFull" name="tank" value="Full" checked>
+                <label for="tankFull">Full</label>
+                <input type="radio" id="tankHalf" name="tank" value="Yarım">
+                <label for="tankHalf">Yarım</label>
+                <input type="radio" id="tankLow" name="tank" value="Az">
+                <label for="tankLow">Az</label>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Sürüş Tipi</label>
+            <div class="radio-group">
+                <input type="radio" id="driveCity" name="drive" value="Şehir İçi" checked>
+                <label for="driveCity">Şehir İçi</label>
+                <input type="radio" id="driveMixed" name="drive" value="Karışık">
+                <label for="driveMixed">Karışık</label>
+                <input type="radio" id="driveLong" name="drive" value="Uzun Yol">
+                <label for="driveLong">Uzun Yol</label>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Notlar (Opsiyonel)</label>
+            <input type="text" id="notes" placeholder="Örn: Klima açıktı, lastikler yeni...">
+        </div>
+        
+        <div class="input-group">
+            <label>📸 Fiş Fotoğrafı (Sadece cihazda tutulur)</label>
+            <input type="file" id="receiptImg" accept="image/*" style="padding:8px;">
+        </div>
+
+        <button class="btn-save" onclick="kaydet()">KAYDET VE HESAPLA</button>
+    </div>
+
+    <h3 style="margin-bottom:15px; color:var(--text-muted);">Son Hareketler</h3>
+    <div id="logList" class="log-list">
+        </div>
+    
+    <button onclick="excelIndir()" style="background:none; border:1px solid #333; color:#666; width:100%; padding:10px; margin-top:20px; border-radius:8px; cursor:pointer;">📊 Excel Raporu Al</button>
+
+</div>
+
+<script>
+    let myChart = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        // Tarih saat alanını şimdiki zamana ayarla
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('entryDate').value = now.toISOString().slice(0,16);
+        
+        verileriYukle();
+    });
+
+    // --- TEMEL FONKSİYONLAR ---
+
+    function kaydet() {
+        // Verileri al
+        const tarih = document.getElementById('entryDate').value;
+        const istasyon = document.getElementById('station').value || "Bilinmiyor";
+        const guncelKm = parseFloat(document.getElementById('currentKm').value);
+        const yakitTuru = document.getElementById('fuelType').value;
+        const litre = parseFloat(document.getElementById('liters').value);
+        const tutar = parseFloat(document.getElementById('totalPrice').value);
+        const depo = document.querySelector('input[name="tank"]:checked').value;
+        const surus = document.querySelector('input[name="drive"]:checked').value;
+        const notlar = document.getElementById('notes').value;
+
+        if(!guncelKm || !litre || !tutar) {
+            alert("Lütfen KM, Litre ve Tutar alanlarını doldurun!");
+            return;
+        }
+
+        // Önceki kaydı bul (KM hesabı için)
+        const eskiKayitlar = getKayitlar();
+        let yapilanKm = 0;
+        let oncekiKm = 0;
+        
+        if(eskiKayitlar.length > 0) {
+            // Kayıtlar tarihe göre tersten sıralı olduğu için [0] en yenisidir.
+            // Ancak mantıken en yüksek KM en yenidir.
+            const enYuksekKmKaydi = eskiKayitlar.reduce((prev, current) => (prev.guncelKm > current.guncelKm) ? prev : current);
+            oncekiKm = enYuksekKmKaydi.guncelKm;
+            
+            if(guncelKm > oncekiKm) {
+                yapilanKm = guncelKm - oncekiKm;
+            } else {
+                // Eğer kullanıcı daha düşük km girdiyse veya ilk kayıtsa
+                // Manuel sormak yerine 0 kabul edelim ya da uyaralım
+                // Şimdilik 0 diyoruz (ilk kayıt gibi)
+                yapilanKm = 0; 
+            }
+        }
+
+        // Hesaplamalar
+        const birimFiyat = tutar / litre;
+        let tuketim = 0; // 100km'de litre
+        let kmMaliyet = 0; // km başı TL
+
+        if(yapilanKm > 0) {
+            tuketim = (litre / yapilanKm) * 100;
+            kmMaliyet = tutar / yapilanKm;
+        }
+
+        const yeniKayit = {
+            id: Date.now(),
+            tarih: tarih,
+            istasyon: istasyon,
+            guncelKm: guncelKm,
+            yapilanKm: yapilanKm,
+            yakitTuru: yakitTuru,
+            litre: litre,
+            tutar: tutar,
+            birimFiyat: birimFiyat,
+            depo: depo,
+            surus: surus,
+            notlar: notlar,
+            tuketim: tuketim,
+            kmMaliyet: kmMaliyet
+        };
+
+        eskiKayitlar.unshift(yeniKayit);
+        saveKayitlar(eskiKayitlar);
+        
+        // Temizlik
+        document.getElementById('liters').value = "";
+        document.getElementById('totalPrice').value = "";
+        document.getElementById('currentKm').value = "";
+        
+        verileriYukle();
+        alert("Kayıt başarıyla eklendi! 🚗💨");
+    }
+
+    function listeyiGuncelle(kayitlar) {
+        const listeDiv = document.getElementById("logList");
+        listeDiv.innerHTML = "";
+        
+        // Genel Ortalamayı Bul (Anormallik tespiti için)
+        let toplamTuketim = 0;
+        let tuketimSayisi = 0;
+        kayitlar.forEach(k => { if(k.tuketim > 0) { toplamTuketim += k.tuketim; tuketimSayisi++; }});
+        let genelOrtalama = tuketimSayisi > 0 ? (toplamTuketim / tuketimSayisi) : 0;
+
+        kayitlar.forEach(k => {
+            // Tarih formatlama
+            const d = new Date(k.tarih);
+            const tarihGuzel = d.toLocaleDateString('tr-TR', {day:'numeric', month:'short'}) + " " + d.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+
+            // Anormallik Kontrolü (%20 fazla ise)
+            let uyariRozeti = "";
+            if(genelOrtalama > 0 && k.tuketim > (genelOrtalama * 1.20)) {
+                uyariRozeti = `<span class="badge warning">⚠ Yüksek Tüketim</span>`;
+            }
+
+            // Google Maps Linki
+            const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(k.istasyon)}`;
+
+            const div = document.createElement("div");
+            div.className = "log-item";
+            div.innerHTML = `
+                <button class="btn-del" onclick="sil(${k.id})">×</button>
+                <div class="log-header">
+                    <span>${k.istasyon}</span>
+                    <span class="text-green">${k.tutar.toLocaleString('tr-TR')} TL</span>
+                </div>
+                <div class="log-details">
+                    <span>${tarihGuzel} • ${k.yakitTuru}</span>
+                    <span>${k.birimFiyat.toFixed(2)} TL/Lt</span>
+                </div>
+                <div class="log-details" style="margin-top:5px; color:#fff;">
+                    <span>🛣 +${k.yapilanKm} km (${k.guncelKm})</span>
+                    <span>🔥 ${k.tuketim > 0 ? k.tuketim.toFixed(1) + ' Lt/100km' : '-'}</span>
+                </div>
+                <div class="log-badges">
+                    <span class="badge">${k.surus}</span>
+                    <span class="badge">${k.depo}</span>
+                    ${uyariRozeti}
+                    <a href="${mapLink}" target="_blank" class="station-link">📍 Harita</a>
+                </div>
+                ${k.notlar ? `<div style="font-size:0.8rem; color:#666; font-style:italic; border-top:1px solid #333; margin-top:5px; padding-top:5px;">📝 ${k.notlar}</div>` : ''}
+            `;
+            listeDiv.appendChild(div);
+        });
+    }
+
+    function dashboardGuncelle(kayitlar) {
+        if(kayitlar.length === 0) return;
+
+        let toplamYol = 0;
+        let toplamLitre = 0;
+        let toplamTutar = 0;
+        let enUcuzIstasyon = { ad: '-', fiyat: 9999 };
+
+        kayitlar.forEach(k => {
+            if(k.yapilanKm > 0) {
+                toplamYol += k.yapilanKm;
+                toplamLitre += k.litre;
+            }
+            toplamTutar += k.tutar;
+
+            // En ucuz istasyonu bul
+            if(k.birimFiyat > 0 && k.birimFiyat < enUcuzIstasyon.fiyat) {
+                enUcuzIstasyon = { ad: k.istasyon, fiyat: k.birimFiyat };
+            }
+        });
+
+        // Ort Tüketim
+        let ortTuketim = toplamYol > 0 ? (toplamLitre / toplamYol) * 100 : 0;
+        document.getElementById('avgCons').innerText = ortTuketim.toFixed(1);
+
+        // KM Maliyeti
+        let kmMaliyet = toplamYol > 0 ? (toplamTutar / toplamYol) : 0;
+        document.getElementById('costPerKm').innerText = kmMaliyet.toFixed(2);
+
+        // En Ucuz İstasyon Mesajı
+        if(enUcuzIstasyon.fiyat < 9999) {
+            document.getElementById('cheapestStationMsg').innerHTML = 
+                `🏷️ En uygun yakıt: <b>${enUcuzIstasyon.ad}</b> (${enUcuzIstasyon.fiyat.toFixed(2)} TL)`;
+            document.getElementById('cheapestStationMsg').style.color = "var(--success)";
+        }
+
+        grafikCiz(kayitlar);
+    }
+
+    function grafikCiz(kayitlar) {
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        
+        // Veriyi tarihe göre sırala (eskiden yeniye) grafik için
+        const siraliKayitlar = [...kayitlar].sort((a,b) => new Date(a.tarih) - new Date(b.tarih)).slice(-10); // Son 10 kayıt
+
+        const labels = siraliKayitlar.map(k => {
+            const d = new Date(k.tarih);
+            return `${d.getDate()}/${d.getMonth()+1}`;
+        });
+        const dataCost = siraliKayitlar.map(k => k.tutar);
+        const dataCons = siraliKayitlar.map(k => k.tuketim);
+
+        if(myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Harcama (TL)',
+                        data: dataCost,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        yAxisID: 'y',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Tüketim (Lt/100km)',
+                        data: dataCons,
+                        borderColor: '#ef4444',
+                        borderDash: [5, 5],
+                        yAxisID: 'y1',
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: '#94a3b8' } }
+                },
+                scales: {
+                    x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                    y: { 
+                        type: 'linear', display: true, position: 'left', 
+                        ticks: { color: '#3b82f6' }, grid: { color: '#334155' } 
+                    },
+                    y1: { 
+                        type: 'linear', display: true, position: 'right',
+                        ticks: { color: '#ef4444' }, grid: { drawOnChartArea: false }
+                    }
+                }
+            }
+        });
+    }
+
+    function excelIndir() {
+        let kayitlar = getKayitlar();
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Tarih;Istasyon;KM Sayaci;Yapilan Yol;Yakit;Litre;Tutar;Birim Fiyat;Tuketim;Surus;Not\n";
+        
+        kayitlar.forEach(k => {
+            csvContent += `${k.tarih};${k.istasyon};${k.guncelKm};${k.yapilanKm};${k.yakitTuru};${k.litre};${k.tutar};${k.birimFiyat};${k.tuketim.toFixed(2)};${k.surus};${k.notlar}\n`;
+        });
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "yakit_raporu.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function sil(id) {
+        if(confirm("Silmek istediğine emin misin?")) {
+            let k = getKayitlar().filter(x => x.id !== id);
+            saveKayitlar(k);
+            verileriYukle();
+        }
+    }
+
+    function getKayitlar() { return JSON.parse(localStorage.getItem("yakitProDb")) || []; }
+    function saveKayitlar(data) { localStorage.setItem("yakitProDb", JSON.stringify(data)); }
+    function verileriYukle() {
+        const k = getKayitlar();
+        listeyiGuncelle(k);
+        dashboardGuncelle(k);
+    }
+</script>
+
+</body>
+</html>
